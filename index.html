@@ -1,1 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XSS Vulnerability Scanner</title>
+    <style>
+        /* CSS for Dark Theme */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #121212;
+            color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
 
+        .container {
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 24px;
+            color: #4caf50;
+            margin-bottom: 20px;
+        }
+
+        input[type="url"] {
+            width: 80%;
+            padding: 12px;
+            background-color: #333;
+            border: 1px solid #555;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            width: 80%;
+            padding: 12px;
+            background-color: #4caf50;
+            border: none;
+            color: #fff;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #333;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 16px;
+            display: none;
+        }
+
+        .error {
+            background-color: #f44336;
+        }
+
+        .success {
+            background-color: #4caf50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>XSS Vulnerability Scanner</h1>
+        <input type="url" id="url" placeholder="Enter website URL (e.g., https://example.com)" required>
+        <button id="scanButton">Scan Website</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // JavaScript to perform XSS scanning
+        document.getElementById("scanButton").addEventListener("click", function() {
+            const url = document.getElementById("url").value;
+            if (!url) {
+                displayResult("Please enter a valid URL.", "error");
+                return;
+            }
+
+            // Display loading message
+            displayResult("Scanning the website for XSS vulnerabilities...", "info");
+
+            scanWebsite(url);
+        });
+
+        function scanWebsite(url) {
+            const xssPayload = "<script>alert('XSS')</script>";
+            const resultDiv = document.getElementById("result");
+            resultDiv.style.display = "block";
+
+            // Fetch the website content
+            fetch(url)
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, "text/html");
+
+                    // Extract all links on the page
+                    const links = doc.querySelectorAll('a[href]');
+                    let xssFound = false;
+
+                    links.forEach(link => {
+                        let linkUrl = link.href;
+
+                        // Check for potential XSS vulnerability in each link
+                        let testUrl = linkUrl.includes("?") ? `${linkUrl}&test=${xssPayload}` : `${linkUrl}?test=${xssPayload}`;
+
+                        fetch(testUrl)
+                            .then(response => response.text())
+                            .then(pageContent => {
+                                if (pageContent.includes(xssPayload)) {
+                                    xssFound = true;
+                                }
+                            })
+                            .catch(err => {
+                                console.error("Error testing link:", err);
+                            });
+                    });
+
+                    setTimeout(() => {
+                        if (xssFound) {
+                            displayResult("XSS vulnerability detected!", "success");
+                        } else {
+                            displayResult("No XSS vulnerabilities found.", "success");
+                        }
+                    }, 3000);
+                })
+                .catch(err => {
+                    displayResult("Error while scanning the website. Please check the URL.", "error");
+                    console.error("Error fetching the URL:", err);
+                });
+        }
+
+        // Helper function to display the result
+        function displayResult(message, type) {
+            const resultDiv = document.getElementById("result");
+            resultDiv.innerHTML = message;
+            resultDiv.className = "";
+            resultDiv.classList.add(type);
+        }
+    </script>
+</body>
+</html>
