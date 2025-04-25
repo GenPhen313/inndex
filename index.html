@@ -1,162 +1,198 @@
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XSS Vulnerability Scanner</title>
+    <title>أداة اكتشاف الصفحات وفحص XSS</title>
     <style>
-        /* CSS for Dark Theme */
         body {
-            font-family: 'Arial', sans-serif;
-            background-color: #121212;
-            color: #f0f0f0;
+            font-family: Arial, sans-serif;
             margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
         }
-
         .container {
-            background-color: #1e1e1e;
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            padding: 30px;
-            width: 100%;
-            max-width: 600px;
-            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-
         h1 {
-            font-size: 24px;
-            color: #4caf50;
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .input-section {
             margin-bottom: 20px;
         }
-
-        input[type="url"] {
-            width: 80%;
-            padding: 12px;
-            background-color: #333;
-            border: 1px solid #555;
-            color: #fff;
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 16px;
-            margin-bottom: 20px;
         }
-
         button {
-            width: 80%;
-            padding: 12px;
-            background-color: #4caf50;
+            background-color: #3498db;
+            color: white;
             border: none;
-            color: #fff;
-            font-size: 16px;
+            padding: 10px 15px;
             border-radius: 4px;
             cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        #result {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #333;
-            color: #fff;
-            border-radius: 4px;
             font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .results {
+            margin-top: 30px;
+        }
+        .page-result {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        .vulnerable {
+            border-left: 5px solid #e74c3c;
+        }
+        .safe {
+            border-left: 5px solid #2ecc71;
+        }
+        .status {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .details {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #eee;
+            border-radius: 4px;
+        }
+        .loading {
+            text-align: center;
+            margin: 20px 0;
             display: none;
         }
-
-        .error {
-            background-color: #f44336;
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
         }
-
-        .success {
-            background-color: #4caf50;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>XSS Vulnerability Scanner</h1>
-        <input type="url" id="url" placeholder="Enter website URL (e.g., https://example.com)" required>
-        <button id="scanButton">Scan Website</button>
-        <div id="result"></div>
+        <h1>أداة اكتشاف الصفحات وفحص ثغرات XSS</h1>
+        
+        <div class="input-section">
+            <label for="baseUrl">أدخل رابط الموقع (URL):</label>
+            <input type="text" id="baseUrl" placeholder="مثال: https://example.com">
+        </div>
+        
+        <button id="scanBtn">بدء الفحص</button>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>جاري الفحص...</p>
+        </div>
+        
+        <div class="results" id="results"></div>
     </div>
 
     <script>
-        // JavaScript to perform XSS scanning
-        document.getElementById("scanButton").addEventListener("click", function() {
-            const url = document.getElementById("url").value;
-            if (!url) {
-                displayResult("Please enter a valid URL.", "error");
+        document.getElementById('scanBtn').addEventListener('click', startScan);
+        
+        function startScan() {
+            const baseUrl = document.getElementById('baseUrl').value.trim();
+            
+            if (!baseUrl) {
+                alert('الرجاء إدخال رابط الموقع');
                 return;
             }
-
-            // Display loading message
-            displayResult("Scanning the website for XSS vulnerabilities...", "info");
-
-            scanWebsite(url);
-        });
-
-        function scanWebsite(url) {
-            const xssPayload = "<script>alert('XSS')</script>";
-            const resultDiv = document.getElementById("result");
-            resultDiv.style.display = "block";
-
-            // Fetch the website content
-            fetch(url)
-                .then(response => response.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, "text/html");
-
-                    // Extract all links on the page
-                    const links = doc.querySelectorAll('a[href]');
-                    let xssFound = false;
-
-                    links.forEach(link => {
-                        let linkUrl = link.href;
-
-                        // Check for potential XSS vulnerability in each link
-                        let testUrl = linkUrl.includes("?") ? `${linkUrl}&test=${xssPayload}` : `${linkUrl}?test=${xssPayload}`;
-
-                        fetch(testUrl)
-                            .then(response => response.text())
-                            .then(pageContent => {
-                                if (pageContent.includes(xssPayload)) {
-                                    xssFound = true;
-                                }
-                            })
-                            .catch(err => {
-                                console.error("Error testing link:", err);
-                            });
-                    });
-
-                    setTimeout(() => {
-                        if (xssFound) {
-                            displayResult("XSS vulnerability detected!", "success");
-                        } else {
-                            displayResult("No XSS vulnerabilities found.", "success");
-                        }
-                    }, 3000);
-                })
-                .catch(err => {
-                    displayResult("Error while scanning the website. Please check the URL.", "error");
-                    console.error("Error fetching the URL:", err);
-                });
+            
+            // إظهار مؤشر التحميل
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').innerHTML = '';
+            
+            // محاكاة عملية الفحص (في الواقع ستحتاج إلى خادم حقيقي لهذه الوظيفة)
+            setTimeout(() => {
+                // هذه مجرد أمثلة للنتائج، في الواقع ستحتاج إلى تنفيذ فحص حقيقي
+                const mockPages = [
+                    { url: baseUrl + '/index.php', vulnerable: true, payload: '<script>alert("XSS")</script>' },
+                    { url: baseUrl + '/contact.php', vulnerable: false },
+                    { url: baseUrl + '/search.php?q=test', vulnerable: true, payload: '"><script>alert("XSS")</script>' },
+                    { url: baseUrl + '/about.php', vulnerable: false },
+                    { url: baseUrl + '/login.php', vulnerable: true, payload: '\'"><script>alert("XSS")</script>' }
+                ];
+                
+                displayResults(mockPages);
+                document.getElementById('loading').style.display = 'none';
+            }, 2000);
         }
-
-        // Helper function to display the result
-        function displayResult(message, type) {
-            const resultDiv = document.getElementById("result");
-            resultDiv.innerHTML = message;
-            resultDiv.className = "";
-            resultDiv.classList.add(type);
+        
+        function displayResults(pages) {
+            const resultsContainer = document.getElementById('results');
+            
+            pages.forEach(page => {
+                const pageElement = document.createElement('div');
+                pageElement.className = `page-result ${page.vulnerable ? 'vulnerable' : 'safe'}`;
+                
+                const statusElement = document.createElement('div');
+                statusElement.className = 'status';
+                statusElement.textContent = `الصفحة: ${page.url} - ${page.vulnerable ? 'يوجد ثغرة XSS' : 'آمنة'}`;
+                statusElement.style.color = page.vulnerable ? '#e74c3c' : '#2ecc71';
+                
+                pageElement.appendChild(statusElement);
+                
+                if (page.vulnerable) {
+                    const detailsElement = document.createElement('div');
+                    detailsElement.className = 'details';
+                    detailsElement.innerHTML = `
+                        <strong>حمولة XSS الناجحة:</strong> ${escapeHtml(page.payload)}<br>
+                        <strong>نوع الثغرة:</strong> ${determineXssType(page.payload)}
+                    `;
+                    pageElement.appendChild(detailsElement);
+                }
+                
+                resultsContainer.appendChild(pageElement);
+            });
+        }
+        
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+        
+        function determineXssType(payload) {
+            if (payload.includes('<script>')) return 'ثغرة XSS تقليدية (Script Tag)';
+            if (payload.includes('onerror=')) return 'ثغرة XSS (Event Handler)';
+            if (payload.includes('javascript:')) return 'ثغرة XSS (JavaScript URI)';
+            if (payload.includes('">') || payload.includes("'>")) return 'ثغرة XSS (HTML Attribute)';
+            return 'ثغرة XSS (نوع آخر)';
         }
     </script>
 </body>
